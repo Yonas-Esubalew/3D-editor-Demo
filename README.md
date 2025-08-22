@@ -1,43 +1,87 @@
 🖥️ 3D Editor Demo
 
-A browser-based 3D scene editor built with Three.js, offering intuitive tools for modeling, transforming, and managing 3D objects.
-
-🔗 Live Demo: https://3-d-editor-demo.vercel.app/
+A browser-based 3D editor built with Three.js, allowing users to create, transform, and manage 3D objects in a simple and interactive interface.
 
  How to Run the App
+1 Open the Demo
 
-Open the Demo:
 Visit https://3-d-editor-demo.vercel.app/
  in any modern browser (Chrome, Firefox, Safari).
 
-Interact with the Interface:
+2 Interact with the Editor
 
-Add Shapes: Use the buttons to add Box, Sphere, or Cylinder.
+Add Shapes: Use buttons to add Box, Sphere, or Cylinder.
 
-Select Objects: Click on any object to select it.
+Select Objects: Click on objects to select them.
 
-Transform Objects: Use the gizmo or sliders to move, rotate, or scale the selected object.
+Transform Objects: Move, rotate, or scale using:
 
-View Properties: The sidebar displays the current position, rotation, and scale of the selected object.
+Gizmo controls
 
-Manage the Scene:
+Sliders in the sidebar
 
-Export Scene: Click "Export JSON" to download the current scene's data.
+View Properties: Sidebar shows Position, Rotation, and Scale of selected objects.
 
-Import Scene: Paste a previously exported JSON into the "Import JSON" field to restore a scene.
+3 Scene Management
+
+Export Scene: Click Export JSON to download your scene data.
+
+Import Scene: Paste a JSON into the Import JSON field to restore the scene.
+
+Undo/Redo: Use the buttons or Ctrl+Z / Ctrl+Shift+Z.
 
  Completed Features
 
-Add 3D Shapes: Box, Sphere, and Cylinder with random placement options.
+Add 3D Shapes
 
-Object Selection: Click to select objects in the scene.
+Box, Sphere, Cylinder
 
-Transform Controls: Move, rotate, and scale objects using a gizmo or sliders.
+Random placement option
 
-Properties Display: View and edit position, rotation, and scale in the sidebar.
+Object Selection
 
-Scene Persistence: Export and import scenes using JSON format.
+Click to select
 
-Snap to Grid: Toggle snap to align objects to a grid.
+Highlights selected object
 
-Undo/Redo: Revert or reapply the last transformation action.
+Transform Controls
+
+Move, Rotate, Scale via gizmo
+
+Sliders for fine adjustments
+
+Properties Display
+
+Live update of Position, Rotation, Scale
+
+Scene Persistence
+
+Export/Import via JSON
+
+Snap to Grid
+
+Align objects to integer positions
+
+Undo/Redo
+
+Revert or reapply last actions
+
+Reset Camera & Grid/Axes Toggle
+
+Reset view or toggle helpers easily
+
+🎨 Future Improvements
+
+Additional shapes (cone, torus)
+
+Material/color editor
+
+Multi-object selection
+
+Improved mobile support
+
+📖 Notes
+
+This is a pure front-end app, no backend required.
+
+Works best in desktop browsers due to 3D interactions.
