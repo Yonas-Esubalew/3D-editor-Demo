@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js 3D Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/TransformControls.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        #container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #toolbar {
+            display: flex;
+            padding: 10px;
+            background-color: #2c3e50;
+            color: white;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .toolbar-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 10px;
+            border-right: 1px solid #34495e;
+        }
+        
+        button {
+            padding: 8px 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button.active {
+            background-color: #e74c3c;
+        }
+        
+        #sidebar {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 300px;
+            height: 100%;
+            background-color: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 20px;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        #sidebar.visible {
+            transform: translateX(0);
+        }
+        
+        #toggle-sidebar {
+            position: absolute;
+            right: 300px;
+            top: 10px;
+            z-index: 1000;
+        }
+        
+        .property-group {
+            margin-bottom: 20px;
+        }
+        
+        .property-group h3 {
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #34495e;
+        }
+        
+        .property-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .property-label {
+            flex: 1;
+        }
+        
+        .property-value {
+            flex: 1;
+            text-align: right;
+        }
+        
+        .slider-container {
+            flex: 2;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+        }
+        
+        .shape-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            background-color: #34495e;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .shape-button:hover {
+            background-color: #3498db;
+        }
+        
+        .shape-button.active {
+            background-color: #e74c3c;
+        }
+        
+        #notification {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        #notification.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <div class="toolbar-section">
+            <h3>Shapes:</h3>
+            <div class="shape-button" id="add-box" title="Add Box">
+                <span>Box</span>
+            </div>
+            <div class="shape-button" id="add-sphere" title="Add Sphere">
+                <span>Sphere</span>
+            </div>
+            <div class="shape-button" id="add-cylinder" title="Add Cylinder">
+                <span>Cylinder</span>
+            </div>
+        </div>
+        
+        <div class="toolbar-section">
+            <h3>Transform:</h3>
+            <button id="move-mode">Move</button>
+            <button id="rotate-mode">Rotate</button>
+            <button id="scale-mode">Scale</button>
+            <button id="snap-toggle">Snap: Off</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <h3>Scene:</h3>
+            <button id="export-btn">Export JSON</button>
+            <button id="import-btn">Import JSON</button>
+            <button id="undo-btn" disabled>Undo</button>
+            <button id="redo-btn" disabled>Redo</button>
+        </div>
+    </div>
+    
+    <div id="container">
+        <button id="toggle-sidebar">Properties</button>
+        <div id="sidebar">
+            <h2>Object Properties</h2>
+            <div class="property-group">
+                <h3>Position</h3>
+                <div class="property-row">
+                    <span class="property-label">X:</span>
+                    <span class="property-value" id="pos-x">0.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="pos-x-slider" min="-10" max="10" step="0.1" value="0">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Y:</span>
+                    <span class="property-value" id="pos-y">0.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="pos-y-slider" min="-10" max="10" step="0.1" value="0">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Z:</span>
+                    <span class="property-value" id="pos-z">0.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="pos-z-slider" min="-10" max="10" step="0.1" value="0">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <h3>Rotation</h3>
+                <div class="property-row">
+                    <span class="property-label">X:</span>
+                    <span class="property-value" id="rot-x">0.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="rot-x-slider" min="-180" max="180" step="1" value="0">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Y:</span>
+                    <span class="property-value" id="rot-y">0.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="rot-y-slider" min="-180" max="180" step="1" value="0">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Z:</span>
+                    <span class="property-value" id="rot-z">0.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="rot-z-slider" min="-180" max="180" step="1" value="0">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <h3>Scale</h3>
+                <div class="property-row">
+                    <span class="property-label">X:</span>
+                    <span class="property-value" id="scale-x">1.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="scale-x-slider" min="0.1" max="5" step="0.1" value="1">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Y:</span>
+                    <span class="property-value" id="scale-y">1.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="scale-y-slider" min="0.1" max="5" step="0.1" value="1">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Z:</span>
+                    <span class="property-value" id="scale-z">1.00</span>
+                    <div class="slider-container">
+                        <input type="range" id="scale-z-slider" min="0.1" max="5" step="0.1" value="1">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="property-group">
+                <h3>Dimensions</h3>
+                <div class="property-row">
+                    <span class="property-label">Width:</span>
+                    <span class="property-value" id="dim-width">1.00</span>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Height:</span>
+                    <span class="property-value" id="dim-height">1.00</span>
+                </div>
+                <div class="property-row">
+                    <span class="property-label">Depth:</span>
+                    <span class="property-value" id="dim-depth">1.00</span>
+                </div>
+            </div>
+            
+            <button id="delete-btn" style="background-color: #e74c3c; margin-top: 20px; width: 100%;">Delete Object</button>
+        </div>
+        
+        <div id="notification">Object added successfully!</div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, controls, transformControls;
+        let raycaster, mouse;
+        let selectedObject = null;
+        let snapEnabled = false;
+        let history = [];
+        let historyIndex = -1;
+        
+        init();
+        animate();
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(10, 10, 10);
+            camera.lookAt(0, 0, 0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Set up OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            // Set up TransformControls
+            transformControls = new THREE.TransformControls(camera, renderer.domElement);
+            transformControls.addEventListener('change', () => {
+                if (selectedObject) {
+                    updatePropertiesPanel();
+                    // Save state for undo/redo when dragging ends
+                    transformControls.addEventListener('mouseUp', () => saveState(), { once: true });
+                }
+            });
+            transformControls.addEventListener('dragging-changed', (event) => {
+                controls.enabled = !event.value;
+            });
+            scene.add(transformControls);
+            
+            // Set up raycaster for object selection
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 15);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Add helpers
+            const gridHelper = new THREE.GridHelper(20, 20);
+            scene.add(gridHelper);
+            
+            const axesHelper = new THREE.AxesHelper(5);
+            scene.add(axesHelper);
+            
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('click', onCanvasClick);
+            
+            // Setup UI event listeners
+            setupEventListeners();
+            
+            // Initial state save
+            saveState();
+        }
+        
+        function setupEventListeners() {
+            // Shape buttons
+            document.getElementById('add-box').addEventListener('click', () => addShape('box'));
+            document.getElementById('add-sphere').addEventListener('click', () => addShape('sphere'));
+            document.getElementById('add-cylinder').addEventListener('click', () => addShape('cylinder'));
+            
+            // Transform mode buttons
+            document.getElementById('move-mode').addEventListener('click', () => setTransformMode('translate'));
+            document.getElementById('rotate-mode').addEventListener('click', () => setTransformMode('rotate'));
+            document.getElementById('scale-mode').addEventListener('click', () => setTransformMode('scale'));
+            
+            // Snap toggle
+            document.getElementById('snap-toggle').addEventListener('click', toggleSnap);
+            
+            // Scene operations
+            document.getElementById('export-btn').addEventListener('click', exportScene);
+            document.getElementById('import-btn').addEventListener('click', importScene);
+            document.getElementById('undo-btn').addEventListener('click', undo);
+            document.getElementById('redo-btn').addEventListener('click', redo);
+            document.getElementById('delete-btn').addEventListener('click', deleteSelectedObject);
+            
+            // Sidebar toggle
+            document.getElementById('toggle-sidebar').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('visible');
+            });
+            
+            // Property sliders
+            const sliders = [
+                'pos-x-slider', 'pos-y-slider', 'pos-z-slider',
+                'rot-x-slider', 'rot-y-slider', 'rot-z-slider',
+                'scale-x-slider', 'scale-y-slider', 'scale-z-slider'
+            ];
+            
+            sliders.forEach(sliderId => {
+                document.getElementById(sliderId).addEventListener('input', (e) => {
+                    if (selectedObject) {
+                        updateObjectFromSliders();
+                    }
+                });
+                
+                document.getElementById(sliderId).addEventListener('change', () => {
+                    saveState();
+                });
+            });
+        }
+        
+        function addShape(type) {
+            let geometry, material, mesh;
+            
+            switch(type) {
+                case 'box':
+                    geometry = new THREE.BoxGeometry(2, 2, 2);
+                    break;
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(1, 32, 32);
+                    break;
+                case 'cylinder':
+                    geometry = new THREE.CylinderGeometry(1, 1, 2, 32);
+                    break;
+            }
+            
+            material = new THREE.MeshStandardMaterial({ 
+                color: new THREE.Color(Math.random(), Math.random(), Math.random()),
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            
+            mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // Add at random position near origin
+            mesh.position.set(
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10
+            );
+            
+            // Store the type for serialization
+            mesh.userData.type = type;
+            
+            scene.add(mesh);
+            selectObject(mesh);
+            
+            // Show notification
+            showNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} added`);
+            
+            // Save state for undo/redo
+            saveState();
+            
+            return mesh;
+        }
+        
+        function onCanvasClick(event) {
+            // Calculate mouse position in normalized device coordinates
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Raycasting
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            // Filter out helpers and controls
+            const filteredIntersects = intersects.filter(item => 
+                !(item.object instanceof THREE.GridHelper) && 
+                !(item.object instanceof THREE.AxesHelper) &&
+                item.object !== transformControls
+            );
+            
+            if (filteredIntersects.length > 0) {
+                selectObject(filteredIntersects[0].object);
+            } else {
+                deselectObject();
+            }
+        }
+        
+        function selectObject(object) {
+            // Deselect current object
+            if (selectedObject) {
+                if (selectedObject.userData.originalMaterial) {
+                    selectedObject.material = selectedObject.userData.originalMaterial;
+                }
+                selectedObject = null;
+            }
+            
+            // Select new object
+            selectedObject = object;
+            
+            if (selectedObject) {
+                // Store original material and apply highlight
+                selectedObject.userData.originalMaterial = selectedObject.material;
+                selectedObject.material = selectedObject.material.clone();
+                selectedObject.material.emissive = new THREE.Color(0.3, 0.3, 0.3);
+                
+                // Attach transform controls
+                transformControls.attach(selectedObject);
+                
+                // Update properties panel
+                updatePropertiesPanel();
+                
+                // Show sidebar
+                document.getElementById('sidebar').classList.add('visible');
+            } else {
+                transformControls.detach();
+            }
+        }
+        
+        function deselectObject() {
+            if (selectedObject) {
+                if (selectedObject.userData.originalMaterial) {
+                    selectedObject.material = selectedObject.userData.originalMaterial;
+                }
+                selectedObject = null;
+            }
+            
+            transformControls.detach();
+            document.getElementById('sidebar').classList.remove('visible');
+        }
+        
+        function setTransformMode(mode) {
+            transformControls.setMode(mode);
+            
+            // Update button states
+            document.getElementById('move-mode').classList.toggle('active', mode === 'translate');
+            document.getElementById('rotate-mode').classList.toggle('active', mode === 'rotate');
+            document.getElementById('scale-mode').classList.toggle('active', mode === 'scale');
+        }
+        
+        function toggleSnap() {
+            snapEnabled = !snapEnabled;
+            transformControls.setTranslationSnap(snapEnabled ? 1 : null);
+            transformControls.setRotationSnap(snapEnabled ? Math.PI / 18 : null); // 10 degrees
+            document.getElementById('snap-toggle').textContent = snapEnabled ? 'Snap: On' : 'Snap: Off';
+        }
+        
+        function updatePropertiesPanel() {
+            if (!selectedObject) return;
+            
+            // Position
+            document.getElementById('pos-x').textContent = selectedObject.position.x.toFixed(2);
+            document.getElementById('pos-y').textContent = selectedObject.position.y.toFixed(2);
+            document.getElementById('pos-z').textContent = selectedObject.position.z.toFixed(2);
+            
+            document.getElementById('pos-x-slider').value = selectedObject.position.x;
+            document.getElementById('pos-y-slider').value = selectedObject.position.y;
+            document.getElementById('pos-z-slider').value = selectedObject.position.z;
+            
+            // Rotation (convert to degrees)
+            document.getElementById('rot-x').textContent = THREE.MathUtils.radToDeg(selectedObject.rotation.x).toFixed(2);
+            document.getElementById('rot-y').textContent = THREE.MathUtils.radToDeg(selectedObject.rotation.y).toFixed(2);
+            document.getElementById('rot-z').textContent = THREE.MathUtils.radToDeg(selectedObject.rotation.z).toFixed(2);
+            
+            document.getElementById('rot-x-slider').value = THREE.MathUtils.radToDeg(selectedObject.rotation.x);
+            document.getElementById('rot-y-slider').value = THREE.MathUtils.radToDeg(selectedObject.rotation.y);
+            document.getElementById('rot-z-slider').value = THREE.MathUtils.radToDeg(selectedObject.rotation.z);
+            
+            // Scale
+            document.getElementById('scale-x').textContent = selectedObject.scale.x.toFixed(2);
+            document.getElementById('scale-y').textContent = selectedObject.scale.y.toFixed(2);
+            document.getElementById('scale-z').textContent = selectedObject.scale.z.toFixed(2);
+            
+            document.getElementById('scale-x-slider').value = selectedObject.scale.x;
+            document.getElementById('scale-y-slider').value = selectedObject.scale.y;
+            document.getElementById('scale-z-slider').value = selectedObject.scale.z;
+            
+            // Dimensions
+            if (selectedObject.geometry instanceof THREE.BoxGeometry) {
+                document.getElementById('dim-width').textContent = (selectedObject.scale.x * 2).toFixed(2);
+                document.getElementById('dim-height').textContent = (selectedObject.scale.y * 2).toFixed(2);
+                document.getElementById('dim-depth').textContent = (selectedObject.scale.z * 2).toFixed(2);
+            } else if (selectedObject.geometry instanceof THREE.SphereGeometry) {
+                const radius = selectedObject.scale.x;
+                document.getElementById('dim-width').textContent = (radius * 2).toFixed(2);
+                document.getElementById('dim-height').textContent = (radius * 2).toFixed(2);
+                document.getElementById('dim-depth').textContent = (radius * 2).toFixed(2);
+            } else if (selectedObject.geometry instanceof THREE.CylinderGeometry) {
+                document.getElementById('dim-width').textContent = (selectedObject.scale.x * 2).toFixed(2);
+                document.getElementById('dim-height').textContent = (selectedObject.scale.y * 2).toFixed(2);
+                document.getElementById('dim-depth').textContent = (selectedObject.scale.z * 2).toFixed(2);
+            }
+        }
+        
+        function updateObjectFromSliders() {
+            if (!selectedObject) return;
+            
+            // Position
+            selectedObject.position.x = parseFloat(document.getElementById('pos-x-slider').value);
+            selectedObject.position.y = parseFloat(document.getElementById('pos-y-slider').value);
+            selectedObject.position.z = parseFloat(document.getElementById('pos-z-slider').value);
+            
+            // Rotation (convert from degrees to radians)
+            selectedObject.rotation.x = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rot-x-slider').value));
+            selectedObject.rotation.y = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rot-y-slider').value));
+            selectedObject.rotation.z = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rot-z-slider').value));
+            
+            // Scale
+            selectedObject.scale.x = parseFloat(document.getElementById('scale-x-slider').value);
+            selectedObject.scale.y = parseFloat(document.getElementById('scale-y-slider').value);
+            selectedObject.scale.z = parseFloat(document.getElementById('scale-z-slider').value);
+            
+            // Update the displayed values
+            updatePropertiesPanel();
+        }
+        
+        function deleteSelectedObject() {
+            if (selectedObject) {
+                scene.remove(selectedObject);
+                deselectObject();
+                saveState();
+                showNotification("Object deleted");
+            }
+        }
+        
+        function exportScene() {
+            const sceneData = {
+                objects: []
+            };
+            
+            scene.children.forEach(child => {
+                if (child instanceof THREE.Mesh && child.userData.type) {
+                    const objData = {
+                        type: child.userData.type,
+                        position: { x: child.position.x, y: child.position.y, z: child.position.z },
+                        rotation: { x: child.rotation.x, y: child.rotation.y, z: child.rotation.z },
+                        scale: { x: child.scale.x, y: child.scale.y, z: child.scale.z },
+                        color: child.material.color.getHex(),
+                        material: {
+                            metalness: child.material.metalness,
+                            roughness: child.material.roughness
+                        }
+                    };
+                    
+                    sceneData.objects.push(objData);
+                }
+            });
+            
+            const dataStr = JSON.stringify(sceneData);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'scene.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            
+            showNotification("Scene exported");
+        }
+        
+        function importScene() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    try {
+                        const sceneData = JSON.parse(event.target.result);
+                        
+                        // Clear current scene (except lights and helpers)
+                        scene.children.forEach(child => {
+                            if (child instanceof THREE.Mesh && child.userData.type) {
+                                scene.remove(child);
+                            }
+                        });
+                        
+                        // Add objects from JSON
+                        sceneData.objects.forEach(objData => {
+                            let geometry;
+                            
+                            switch(objData.type) {
+                                case 'box':
+                                    geometry = new THREE.BoxGeometry(2, 2, 2);
+                                    break;
+                                case 'sphere':
+                                    geometry = new THREE.SphereGeometry(1, 32, 32);
+                                    break;
+                                case 'cylinder':
+                                    geometry = new THREE.CylinderGeometry(1, 1, 2, 32);
+                                    break;
+                            }
+                            
+                            const material = new THREE.MeshStandardMaterial({
+                                color: objData.color !== undefined ? objData.color : 0x049ef4,
+                                metalness: objData.material?.metalness !== undefined ? objData.material.metalness : 0.3,
+                                roughness: objData.material?.roughness !== undefined ? objData.material.roughness : 0.7
+                            });
+                            
+                            const mesh = new THREE.Mesh(geometry, material);
+                            mesh.castShadow = true;
+                            mesh.receiveShadow = true;
+                            
+                            // Set position, rotation, scale
+                            mesh.position.set(
+                                objData.position.x,
+                                objData.position.y,
+                                objData.position.z
+                            );
+                            
+                            mesh.rotation.set(
+                                objData.rotation.x,
+                                objData.rotation.y,
+                                objData.rotation.z
+                            );
+                            
+                            mesh.scale.set(
+                                objData.scale.x,
+                                objData.scale.y,
+                                objData.scale.z
+                            );
+                            
+                            // Store type for serialization
+                            mesh.userData.type = objData.type;
+                            
+                            scene.add(mesh);
+                        });
+                        
+                        deselectObject();
+                        saveState();
+                        showNotification("Scene imported");
+                    } catch (error) {
+                        console.error("Error parsing JSON:", error);
+                        alert("Error importing scene: Invalid JSON file");
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+        
+        function saveState() {
+            if (historyIndex < history.length - 1) {
+                history = history.slice(0, historyIndex + 1);
+            }
+            
+            const sceneData = {
+                objects: []
+            };
+            
+            scene.children.forEach(child => {
+                if (child instanceof THREE.Mesh && child.userData.type) {
+                    const objData = {
+                        type: child.userData.type,
+                        position: { x: child.position.x, y: child.position.y, z: child.position.z },
+                        rotation: { x: child.rotation.x, y: child.rotation.y, z: child.rotation.z },
+                        scale: { x: child.scale.x, y: child.scale.y, z: child.scale.z },
+                        color: child.material.color.getHex(),
+                        material: {
+                            metalness: child.material.metalness,
+                            roughness: child.material.roughness
+                        }
+                    };
+                    
+                    sceneData.objects.push(objData);
+                }
+            });
+            
+            history.push(JSON.stringify(sceneData));
+            historyIndex = history.length - 1;
+            
+            updateUndoRedoButtons();
+        }
+        
+        function restoreState() {
+            if (historyIndex < 0 || historyIndex >= history.length) return;
+            
+            const sceneData = JSON.parse(history[historyIndex]);
+            
+            // Clear current scene (except lights and helpers)
+            scene.children.forEach(child => {
+                if (child instanceof THREE.Mesh && child.userData.type) {
+                    scene.remove(child);
+                }
+            });
+            
+            // Add objects from history
+            sceneData.objects.forEach(objData => {
+                let geometry;
+                
+                switch(objData.type) {
+                    case 'box':
+                        geometry = new THREE.BoxGeometry(2, 2, 2);
+                        break;
+                    case 'sphere':
+                        geometry = new THREE.SphereGeometry(1, 32, 32);
+                        break;
+                    case 'cylinder':
+                        geometry = new THREE.CylinderGeometry(1, 1, 2, 32);
+                        break;
+                }
+                
+                const material = new THREE.MeshStandardMaterial({
+                    color: objData.color !== undefined ? objData.color : 0x049ef4,
+                    metalness: objData.material?.metalness !== undefined ? objData.material.metalness : 0.3,
+                    roughness: objData.material?.roughness !== undefined ? objData.material.roughness : 0.7
+                });
+                
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                
+                // Set position, rotation, scale
+                mesh.position.set(
+                    objData.position.x,
+                    objData.position.y,
+                    objData.position.z
+                );
+                
+                mesh.rotation.set(
+                    objData.rotation.x,
+                    objData.rotation.y,
+                    objData.rotation.z
+                );
+                
+                mesh.scale.set(
+                    objData.scale.x,
+                    objData.scale.y,
+                    objData.scale.z
+                );
+                
+                // Store type for serialization
+                mesh.userData.type = objData.type;
+                
+                scene.add(mesh);
+            });
+            
+            deselectObject();
+            updateUndoRedoButtons();
+        }
+        
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                restoreState();
+                showNotification("Undo");
+            }
+        }
+        
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                restoreState();
+                showNotification("Redo");
+            }
+        }
+        
+        function updateUndoRedoButtons() {
+            document.getElementById('undo-btn').disabled = historyIndex <= 0;
+            document.getElementById('redo-btn').disabled = historyIndex >= history.length - 1;
+        }
+        
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('visible');
+            
+            setTimeout(() => {
+                notification.classList.remove('visible');
+            }, 2000);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
