@@ -190,6 +190,8 @@
             <h3>Scene:</h3>
             <button id="export-btn">Export JSON</button>
             <button id="import-btn">Import JSON</button>
+            <button id="undo-btn" disabled>Undo</button>
+            <button id="redo-btn" disabled>Redo</button>
         </div>
     </div>
     
@@ -287,7 +289,10 @@
                     <span class="property-value" id="dim-depth">1.00</span>
                 </div>
             </div>
+            
+            <button id="delete-btn" style="background-color: #e74c3c; margin-top: 20px; width: 100%;">Delete Object</button>
         </div>
+        
         <div id="notification">Object added successfully!</div>
     </div>
 
